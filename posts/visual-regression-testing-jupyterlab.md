@@ -245,7 +245,7 @@ These parts need a few changes before you can reuse them:
 
 ## Credits
 
-At OpenTeams, [@krassowski](https://github.com/krassowski) led the work, and [@MUFFANUJ](https://github.com/MUFFANUJ) and [@Darshan808](https://github.com/Darshan808) worked on the flaky test fixes, the CI tooling and the lint rules.
+This work was a collaboration with Quansight PBC. At OpenTeams, [@krassowski](https://github.com/krassowski) led the work, and [@MUFFANUJ](https://github.com/MUFFANUJ) and [@Darshan808](https://github.com/Darshan808) worked on the flaky test fixes, the CI tooling and the lint rules.
 
 The Jupyter Foundation [funded this work](https://github.com/jupyter-governance/funding-proposals/issues/7). [@jtpio](https://github.com/jtpio) opened [the 2023 issue](https://github.com/jupyterlab/jupyterlab/issues/14947) that described the problem, [@bollwyvl](https://github.com/bollwyvl) [asked for a readable CI report](https://github.com/jupyterlab/jupyterlab/issues/17831), and [@jasongrout](https://github.com/jasongrout) [set up the scheduled runs](https://github.com/jupyterlab/jupyterlab/pull/18248) that give the flakiness numbers in this post.
 
