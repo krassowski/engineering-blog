@@ -9,7 +9,7 @@ meta_description: "See how JupyterLab made visual regression testing reproducibl
 focus_keyword: "visual regression testing"
 ---
 
-JupyterLab uses visual regression testing to catch unintended changes to the interface before a release: it compares about 350 reference screenshots (snapshots, in Playwright's terms) on every pull request. The tests use [Galata](https://github.com/jupyterlab/jupyterlab/tree/main/galata), JupyterLab's test framework built on Playwright. Until February 2026 the suite took 55 minutes, and now it takes 14 to 16. Flaky tests, which fail once and pass on retry, went from 17 per run in January to 2.4 in August. Any contributor can now request new reference images with a comment. A local run on Linux with the CI fonts produces the same pixels as CI, and on Fedora 44 with its default fonts, 84% of the screenshots match.
+JupyterLab uses visual regression testing to catch unintended changes to the interface before a release: it compares about 350 reference screenshots (snapshots, in Playwright's terms) on every pull request. The tests use [Galata](https://github.com/jupyterlab/jupyterlab/tree/main/galata), JupyterLab's test framework built on Playwright. Until February 2026 the suite took 55 minutes, and now it takes 14 to 16. Flaky tests, which fail once and pass on retry, went from 17 per run in January to 2.4 in August. Any contributor can now request new reference images with a comment. A local run on Linux with the CI fonts produces the same pixels as CI, and on Fedora 44 with its default fonts, 85% of the screenshots match.
 
 In the three months to 25 September 2026, 28 of the 30 merged pull requests that added or changed a UI test in JupyterLab were AI-assisted.[^ai] A developer who works with an agent on interface code needs a test that runs on their machine, a result they can trust, and an answer in minutes.
 
@@ -32,7 +32,7 @@ We also ran the Chromium tests on two setups other than the CI runner: Fedora 44
 
 | | Before | Now |
 | --- | ---: | ---: |
-| Fedora 44: screenshots that match CI | 1% | 84% |
+| Fedora 44: screenshots that match CI | 1% | 85% |
 | Fedora 44: tests that pass | 56% | 93% |
 | Ubuntu 26.04 runner: screenshots that match CI | 35% | 100% |
 | Ubuntu 26.04 runner: tests that pass | 71% | 99.8% |
@@ -97,10 +97,7 @@ The new fonts changed every existing screenshot, and [one pull request](https://
 
 We ran the Chromium tests in [Fedora 44 and openSUSE Tumbleweed containers](https://github.com/krassowski/jupyterlab/actions/runs/36240377663) on GitHub Actions, against the reference images from the Ubuntu runner. With the runner's font packages installed (DejaVu, Liberation, Lato and Noto Color Emoji), both matched all 255 screenshot comparisons. openSUSE also needed the three fontconfig rules that turn off hinting for small DejaVu text, which Ubuntu and Fedora ship with the font.
 
-With the fonts that Fedora 44 installs by default, 41 screenshots still differ. Each is text that the browser draws with a system font, where the pinned web fonts do not apply:
-
-- Mermaid diagrams (39). JupyterLab shows them as SVG images, and an image cannot use the fonts of the page.
-- Vega charts (2), which ask for `sans-serif`.
+With the fonts that Fedora 44 installs by default, 39 screenshots still differ, all of Mermaid diagrams. JupyterLab shows a Mermaid diagram as an SVG image, and an image cannot use the fonts of the page, so its text uses a system font. Two Vega charts had the same problem because they asked for `sans-serif`, and the test chart now [sets DejaVu Sans in its Vega config](https://github.com/jupyterlab/jupyterlab/pull/19941).
 
 ### macOS and Windows
 
@@ -120,7 +117,7 @@ reporter: process.env.CI
   : [['list'], ['html', { open: 'on-failure' }]],
 ```
 
-A script, [unpack_snapshots.py](https://github.com/jupyterlab/jupyterlab/blob/main/scripts/unpack_snapshots.py) (about 290 lines of standard library Python), copies each image to the path of its reference.
+A script, [unpack_snapshots.py](https://github.com/jupyterlab/jupyterlab/blob/main/scripts/unpack_snapshots.py) (about 340 lines of standard library Python), copies each image to the path of its reference.
 
 Now a contributor writes this comment on their pull request:
 
@@ -128,7 +125,7 @@ Now a contributor writes this comment on their pull request:
 please open PR to update snapshots
 ```
 
-After a maintainer approves the run, a bot waits for the test run to finish, takes the screenshots from its artifacts, and opens a pull request against the contributor's branch. The contributor accepts the new images by merging it. After the test run, the bot takes about a minute. The time grows with the number of changed screenshots and does not depend on the number of tests.
+After a maintainer approves the run, a bot waits for the test run of the head commit to finish, takes the screenshots from its artifacts, and opens a pull request against the contributor's branch. A new request on the same pull request replaces the one in progress. The contributor accepts the new images by merging it. After the test run, the bot takes about a minute. The time grows with the number of changed screenshots and does not depend on the number of tests.
 
 ![A JupyterLab pull request conversation: a comment that reads "bot please open PR to update snapshots", a reference to the pull request that galata-snapshots-bot opened (merged), and the bot's reply with a link to it.](images/visual-regression-testing-jupyterlab/jupyterlab-snapshot-bot-comment.png)
 
@@ -140,11 +137,12 @@ Pushing to the contributor's branch needs a token with write access, in a job th
 
 A GitHub App cannot do this. An App can open pull requests inside its organisation, but not against a fork owned by someone else, so we use a plain bot account with a personal access token.
 
-The job also limits what it does with the checked-out code:
+The workflow also [limits what it does](https://github.com/jupyterlab/jupyterlab/pull/19946) with files from the pull request:
 
 - The unpacking script comes from the default branch, so a pull request cannot change it.
-- Only files that match an explicit list (`galata/**/*.png`, `galata/**/*.json` and `examples/**/*-snapshots/*.png`) are staged, and the job fails if any other file is staged.
-- The commit uses `--no-verify`, so pre-commit hooks from the pull request do not run.
+- A job without the bot token downloads the test artifact, unpacks it and compresses the images. It passes on only the snapshot files.
+- Only files in snapshot directories (`galata/**/*-snapshots/` and `examples/**/*-snapshots/`) are accepted. The job that holds the token checks each path again, and refuses a path that a symbolic link redirects.
+- Git hooks are off in both jobs. The commit flag `--no-verify` alone skips the pre-commit hook, but not `post-checkout` or `post-commit`.
 - The token is in a GitHub Actions environment. Its protection rules require the approval of a maintainer for each run.
 
 ## Looking at a failure without a download
@@ -241,7 +239,7 @@ These parts need a few changes before you can reuse them:
 
 - A few tests per run are still flaky (2.4 on average in August), and [the weekly report](https://github.com/jupyterlab/jupyterlab/issues/19153) lists them.
 - 36 `waitForTimeout` calls remain behind `eslint-disable` comments.
-- Mermaid diagrams and Vega charts still use system fonts, so their screenshots match only on a machine with the runner's fonts.
+- Mermaid diagrams still use system fonts, so their screenshots match only on a machine with the runner's fonts.
 
 ## Credits
 
@@ -280,6 +278,7 @@ Thank you to the reviewers: [@jtpio](https://github.com/jtpio), [@jasongrout](ht
 
 [^setups]: Measured on GitHub Actions on 26 September 2026 with the Chromium tests of the `jupyterlab` project, in a Fedora 44 container and on the Ubuntu 26.04 runner. "Before" is JupyterLab's main branch on 4 February 2026, before the first change of this work, with its own lockfile and Playwright version, and Python packages as of that date. A test or screenshot that passes on the retry counts as passing, as on CI.
 
+    - The Fedora 44 run had 41 failing tests: 39 Mermaid diagrams and 2 Vega charts, each failing on its screenshot only. The Vega charts got a pinned font after the run, so "Now" counts them as matching: 216 of 255 screenshots and 539 of 578 tests.
     - Screenshots: 235 comparisons before and 255 now. A test stops at its first failing screenshot, so fewer comparisons are reached when many fail.
     - Tests: 518 before and 578 now, without the tests that the CI runner skips too. On the CI runner itself, 517 and 518 of 518 tests passed in two runs before, and 578 of 578 now.
     - The Playwright version of February refuses to install Chromium on Ubuntu 26.04, so that run used the Chromium build for Ubuntu 24.04. Most of its screenshot mismatches are coloured fringes around text: the 26.04 image turns on subpixel rendering, and the Chromium flag that turns it off came with this work.
