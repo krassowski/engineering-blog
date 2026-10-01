@@ -7,6 +7,8 @@ categories:
 - Engineering
 meta_description: Use lint rules for AI agents to enforce project conventions. Custom ESLint rules like @jupyter/eslint-plugin give agents clear errors they can fix on their own.
 focus_keyword: Lint rules for AI agents
+wordpress_id: 42025
+wordpress_url: https://openteams.com/lint-rules-for-ai-agents/
 ---
 
 AI agents now write a large share of new code: 42% of committed code, according to [Sonar's 2026 survey](https://www.sonarsource.com/blog/state-of-code-developer-survey-report-the-current-reality-of-ai-coding/). When that code is for JupyterLab, it often looks fine. It compiles, and the tests pass. But it quietly breaks Jupyter's conventions, because those conventions are rare in the public code that models learn from.
