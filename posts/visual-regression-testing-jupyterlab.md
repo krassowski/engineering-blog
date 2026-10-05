@@ -39,18 +39,20 @@ We also ran the Chromium tests on two setups other than the CI runner: Fedora 44
 
 ## If you work with a coding agent
 
-- Your agent can check its work on your machine. On Linux with the same fonts as CI, a local run produces the same pixels as CI, so the reference images that the agent generates also pass on CI.
-- A failure usually means a real problem. A local run does not retry, so a flaky test fails outright on your machine. Given a false failure, an agent reruns the tests or changes code that was not broken, often by adding a fixed wait. In January, 54% of the scheduled runs on an unchanged `main` had a hard failure. In August, 14% had one.
-- You get an answer in 15 minutes. At 55 minutes per CI run, a working day had room for about 8 rounds of change and check. At 15 minutes it has room for about 30.
+If you would like to submit a PR to JupyterLab with a coding agent's assistance:
+
+- Your agent can now check its work and generate reference images on your Linux machine.
+- A failure usually means a real problem. This is important because, given a false failure, an agent may attempt to edit working code, often making unnecessary edits or masking underlying issues (since debugging the unrelated test is not its prime objective).
+- After opening a PR you get an answer in 15 minutes not 55 minutes. This translates to 30 iteration rounds per working day, rather than 8 as previously.
 - The rules are in files the agent reads. JupyterLab's [AGENTS.md](https://github.com/jupyterlab/jupyterlab/blob/main/AGENTS.md) points to the contributing guide, and the guide lists the testing practices described below. Lint rules report fixed waits and hand-written selectors before a reviewer reads the test. Darshan Paudyal explains [why an agent follows a lint rule more reliably than an instruction in AGENTS.md](https://openteams.com/lint-rules-for-ai-agents/).
-- You can watch what the agent's test does. The report has a video of every new or changed test.
+- You and a reviewer can watch what the agent's test does. The report has a video of every new or changed test.
 
 ## Same pixels locally and on CI
 
 A screenshot of the interface is mostly text, and text rendering depends on the machine. We found these causes:
 
 - Fonts come from the operating system, so they differ between a laptop and the CI runner, and between two point releases of one Linux distribution.
-- Playwright's `install-deps` installed about 80 system packages on CI, among them fonts that developer machines do not have (`fonts-freefont-ttf`, `fonts-ipafont-gothic`, `fonts-unifont`, `fonts-wqy-zenhei`, `xfonts-cyrillic`). The theme asked for `system-ui` first, so the font used depended on the installed packages.
+- Playwright's `install-deps` installed about 80 system packages on CI, among them fonts that developer machines do not have (e.g. `xfonts-cyrillic`). The theme asked for `system-ui` first, so the font used depended on the installed packages.
 - The browser defaults for subpixel antialiasing, font smoothing, optical sizing and kerning differ between platforms.
 - The terminal uses a WebGL renderer when WebGL is available and a DOM renderer when it is not, and the two draw text differently.
 - Text drawn on a canvas, as in the terminal and the data grid, does not use CSS.
@@ -101,9 +103,7 @@ With the fonts that Fedora 44 installs by default, 39 screenshots still differ, 
 
 ### macOS and Windows
 
-On the macOS and Windows runners of GitHub Actions, 2 of 51 Linux reference images matched in the first of six shards. In an experiment, we removed three differences. First, the tests overrode `navigator.platform`, because macOS menus showed shortcuts as symbols (⌘, ⌥, ⇧) and were up to 63 pixels narrower. Second, Linux hints glyphs and rounds text widths to whole pixels, and macOS and Windows do not. The Chromium flags `--font-render-hinting=none` and `--disable-font-subpixel-positioning` turn this off on Linux, and `text-rendering: geometricPrecision` in CSS gives the same pixels. With these two changes, no element differed in size, and 7 of 51 screenshots matched on macOS and still 2 on Windows. The flags also changed 48 of the 51 Linux reference images. Third, we loaded the real bold and italic faces, so that the browser does not synthesize them on any system. We measured this change on Linux only.
-
-The glyph pixels still differ, because FreeType on Linux, CoreText on macOS and DirectWrite on Windows draw the same text differently. Menus also kept a one pixel vertical offset that no CSS change removed. These settings did not change any pixels: `AppleFontSmoothing` on macOS, the `FontSmoothing`, `FontSmoothingType` and `FontSmoothingGamma` registry values on Windows, and Chromium's `--text-contrast` and `--text-gamma` switches. The option left is a tolerance per platform: with `maxDiffPixelRatio: 0.01`, 24 of 41 failing screenshots would pass on macOS, and 24 of 45 on Windows.
+We tried reusing the Linux reference images on the macOS and Windows runners of GitHub Actions, with a sample of 20% of the screenshots, and at first 4% matched. We overrode `navigator.platform`, because macOS menus showed shortcuts as symbols and were up to 63 pixels narrower. We also turned off glyph hinting and subpixel positioning on Linux with `--font-render-hinting=none` and `--disable-font-subpixel-positioning`. After that no element differed in size, but only 14% of the screenshots matched on macOS and 4% on Windows. FreeType, CoreText and DirectWrite draw the same glyphs differently, and neither the operating systems' font smoothing settings nor Chromium's `--text-contrast` and `--text-gamma` switches changed that. The option left is a tolerance per platform: with `maxDiffPixelRatio: 0.01`, 59% of the failing screenshots would pass on macOS and 53% on Windows.
 
 ## Snapshot updates from the failed run
 
@@ -117,7 +117,7 @@ reporter: process.env.CI
   : [['list'], ['html', { open: 'on-failure' }]],
 ```
 
-A script, [unpack_snapshots.py](https://github.com/jupyterlab/jupyterlab/blob/main/scripts/unpack_snapshots.py) (about 340 lines of standard library Python), copies each image to the path of its reference.
+A script, [unpack_snapshots.py](https://github.com/jupyterlab/jupyterlab/blob/main/scripts/unpack_snapshots.py), copies each image to the path of its reference.
 
 Now a contributor writes this comment on their pull request:
 
@@ -161,7 +161,7 @@ When a pull request adds or changes a test, the workflow [runs that test again w
 
 A `pull_request` workflow from a fork cannot write comments. The usual solution is a second workflow, triggered by `workflow_run`, that has write permissions and reads an artifact from the first one. Code from the fork produced that artifact, so its content is untrusted. The comment built from it appears under a trusted bot account.
 
-The comment takes two values from the artifact: the link to the report, and the failing and flaky counts. Without checks, a fork could make the trusted bot post a phishing link, or end the markdown link early and add its own text to the comment. [The action](https://github.com/jupyterlab/maintainer-tools/tree/main/.github/actions/ui-test-report-comment) makes these checks, and comments in its source explain each one:
+The comment takes two values from the artifact: the link to the report, and the failing and flaky counts. Without checks, a fork could make the trusted bot post a phishing link, or end the markdown link early and add its own text to the comment. [The action](https://github.com/jupyterlab/maintainer-tools/tree/main/.github/actions/ui-test-report-comment) makes these checks:
 
 - It parses the URL with `new URL()` instead of inserting the string. This removes newlines and encodes angle brackets, so the value cannot escape the markdown link.
 - It requires the URL to point at an artifact of the run being reported. A URL anywhere in your own repository is not safe enough, because GitHub serves the commits of a fork under the base repository: `https://github.com/you/yourrepo/blob/<sha>/evil.html` can be attacker content.
@@ -170,7 +170,7 @@ The comment takes two values from the artifact: the link to the report, and the 
 - It accepts the failing and flaky counts only as non-negative integers, and shows `Unknown` otherwise.
 - It puts the URL in angle brackets in the markdown link, because a closing parenthesis in the URL ends the link early.
 
-We also run [zizmor](https://github.com/zizmorcore/zizmor) on the workflow files, in CI and as a pre-commit hook. It correctly flags the `workflow_run` trigger, so that line has an inline exemption that gives the reason. In our other workflows, zizmor found checkouts that kept credentials they did not need, and caches that a run triggered by a release could poison ([fix](https://github.com/jupyterlab/jupyterlab/pull/18901)).
+We also run [zizmor](https://github.com/zizmorcore/zizmor) on the workflow files, in CI and as a pre-commit hook. It correctly flags the `workflow_run` trigger, so that line has an inline exemption that explains the reason.
 
 ## Measuring flakiness
 
