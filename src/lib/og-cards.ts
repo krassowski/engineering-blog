@@ -4,6 +4,7 @@
 // dev-only pages/og-card route.
 import { createHash } from "node:crypto";
 import template from "../pages/og-card/[slug].astro?raw";
+import fonts from "./fonts.ts?raw";
 import { authorsOf } from "./authors";
 import { authorRole, bylineNames } from "./byline";
 import type { Author } from "./posts";
@@ -41,11 +42,12 @@ export function ogCards(posts: CardPost[]): OgCard[] {
 }
 
 /**
- * The card's file, named with a fingerprint of everything drawn on it and of
- * the card template. Same content, same file: deploys reuse it. Any change,
- * new file: it gets rendered, and link previews that cache by URL refresh.
+ * The card's file, named with a fingerprint of everything drawn on it, of
+ * the card template and of the fonts. Same content, same file: deploys reuse
+ * it. Any change, new file: it gets rendered, and link previews that cache by
+ * URL refresh.
  */
 export function ogFile(card: OgCard): string {
-	const hash = createHash("sha256").update(JSON.stringify([card, template])).digest("hex").slice(0, 8);
+	const hash = createHash("sha256").update(JSON.stringify([card, template, fonts])).digest("hex").slice(0, 8);
 	return `/og/og-${card.key}-${hash}.png`;
 }
