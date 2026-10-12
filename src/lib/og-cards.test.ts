@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ogCards, ogFile } from "./og-cards";
 
 const alice = { slug: "alice", name: "Alice Smith", bio: "Engineer at Example. Writes.", avatarUrl: "https://example.com/a.png" };
@@ -44,5 +44,13 @@ describe("ogFile", () => {
 		expect(ogFile({ ...card, title: "First Post, Revised" })).not.toBe(ogFile(card));
 		expect(ogFile({ ...card, byline: "Alice Smith · 5 min read" })).not.toBe(ogFile(card));
 		expect(ogFile({ ...card, avatar: "https://example.com/new.png" })).not.toBe(ogFile(card));
+	});
+
+	it("changes the name when the fonts change", async () => {
+		vi.resetModules();
+		vi.doMock("./fonts.ts?raw", () => ({ default: "other fonts" }));
+		const { ogFile: withOtherFonts } = await import("./og-cards");
+		vi.doUnmock("./fonts.ts?raw");
+		expect(withOtherFonts(card)).not.toBe(ogFile(card));
 	});
 });
